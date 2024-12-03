@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RoomLab - Administración de Salas</title>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Bootstrap CSS -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- FullCalendar CSS -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet">
+
+<!-- FullCalendar JS -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+    <style>
+	
+	.hero-section {
+    background-color: #343a40;
+    color: white;
+    padding: 60px 20px;
+    text-align: center;
+}
+
+.hero-section h1 {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+
+.hero-section p {
+    font-size: 1.25rem;
+}
+
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        #modal-sala {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        #modal-sala-content {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        #modal-sala-title {
+            background-color: #000;
+            color: #fff;
+            text-align: center;
+            padding: 10px;
+            margin: -20px -20px 20px -20px;
+            border-radius: 8px 8px 0 0;
+        }
+
+        #modal-sala-content .btn-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #000;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<div class="hero-section">
+    <h1>Administrador RoomLab</h1>
+    <p>Gestiona y controla las salas disponibles para tus clientes</p>
+</div>
+
+    <div class="container mt-5">
+        <button class="btn btn-primary my-3" onclick="abrirModalSala()">Agregar Nueva Sala</button>
+        <div id="salas-container" class="row"></div>
+    </div>
+
+    <!-- Modal para Agregar/Editar Sala -->
+    <div id="modal-sala">
+        <div id="modal-sala-content">
+            <h2 id="modal-sala-title">Agregar/Editar Sala</h2>
+            <button class="btn-close" onclick="cerrarModalSala()">×</button>
+            <form id="form-sala">
+                <input type="hidden" id="salaID" name="salaID">
+
+                <div class="mb-3">
+                    <label for="nombre" class="form-label">Nombre de la Sala</label>
+                    <input type="text" class="form-control" id="nombre" name="nombre" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="descripcion" class="form-label">Descripción</label>
+                    <textarea class="form-control" id="descripcion" name="descripcion" rows="3" required></textarea>
+                </div>
+
+                <div class="mb-3">
+                    <label for="precio" class="form-label">Precio</label>
+                    <input type="number" class="form-control" id="precio" name="precio" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="imagen" class="form-label">URL de la Imagen</label>
+                    <input type="text" class="form-control" id="imagen" name="imagen" required>
+                </div>
+				  <div class="mb-3">
+                    <label for="video" class="form-label">URL de la Video</label>
+                    <input type="text" class="form-control" id="video" name="video" required>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100">Guardar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- FullCalendar Modal -->
+    <div id="calendar-modal" class="modal" tabindex="-1" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Gestionar Horarios</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="calendar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery, Bootstrap JS y FullCalendar JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
+
+    <script>
+        const apiBase = 'https://api.example.com'; // Cambia por la URL de tu API
+
+        function abrirModalSala(sala = null) {
+            const modal = document.getElementById('modal-sala');
+            const form = document.getElementById('form-sala');
+            document.getElementById('modal-sala-title').innerText = sala ? 'Editar Sala' : 'Agregar Nueva Sala';
+
+            if (sala) {
+                form.salaID.value = sala.salaID;
+                form.nombre.value = sala.nombre;
+                form.descripcion.value = sala.descripcion;
+                form.precio.value = sala.precio;
+                form.imagen.value = sala.imagen;
+				form.video.value = sala.video;
+            } else {
+                form.reset(); // Limpiar formulario
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function cerrarModalSala() {
+            document.getElementById('modal-sala').style.display = 'none';
+        }
+
+function cargarSalas() {
+    const salasContainer = $('#salas-container');
+    salasContainer.empty(); // Limpiar el contenedor antes de agregar las salas
+
+    $.ajax({
+        type: "POST",
+        url: "https://inventariofw.somee.com/paginas.asmx/ObtenerSalasDisponibles",
+        data: "", // Enviar vacío si no se requieren parámetros
+        contentType: "application/x-www-form-urlencoded",
+        dataType: "xml", // La respuesta es en formato XML
+        success: function(response) {
+            console.log("Datos recibidos:", response);
+
+            $(response).find('SalaDisponible').each(function() {
+                const salaID = $(this).find('SalaID').text();
+                const nombre = $(this).find('Nombre').text();
+                const descripcion = $(this).find('Descripcion').text();
+                const precio = $(this).find('Precio').text();
+                const imagen = $(this).find('Imagen').text();
+				const video = $(this).find('Video').text();
+				
+                const salaDiv = `
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <img style="width:50px; height:50px" src="${imagen}" class="card-img-top" alt="Imagen de la sala">
+                            <div class="card-body">
+                                <h5 class="card-title">${nombre}</h5>
+                                <p class="card-text">${descripcion}</p>
+                                <p class="card-text"><strong>Precio:</strong> $${precio}</p>
+                                <button class="btn btn-warning" onclick='abrirModalSala(${JSON.stringify({ salaID, nombre, descripcion, precio, imagen })})'>Editar</button>
+                                <button class="btn btn-secondary" onclick='abrirCalendario(${JSON.stringify({ salaID, nombre })})'>Horarios</button>
+								 <button class="btn btn-danger" onclick="borrarSala(${salaID})">Eliminar</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                salasContainer.append(salaDiv);
+            });
+        },
+        error: function(xhr, status, error) {
+            console.error("Error al cargar las salas:", error);
+        }
+    });
+}
+function abrirModalSala(sala = null) {
+    const modalTitle = sala ? 'Editar Sala' : 'Agregar Nueva Sala';
+    $('#modal-sala-title').text(modalTitle);
+
+    // Rellenar formulario si es edición
+    if (sala) {
+        $('#salaID').val(sala.salaID);
+        $('#nombre').val(sala.nombre);
+        $('#descripcion').val(sala.descripcion);
+        $('#precio').val(sala.precio);
+        $('#imagen').val(sala.imagen);
+    } else {
+        $('#form-sala')[0].reset(); // Limpiar formulario si es nuevo
+        $('#salaID').val('');
+    }
+
+    $('#modal-sala').css('display', 'flex');
+}
+
+function cerrarModalSala() {
+    document.getElementById('modal-sala').style.display = 'none';
+}
+
+// Agregar evento para cerrar modal al hacer clic fuera del área del modal
+window.addEventListener('click', function(event) {
+    const modal = document.getElementById('modal-sala');
+    const modalContent = document.getElementById('modal-sala-content');
+    if (event.target === modal) {
+        cerrarModalSala();
+    }
+});
+
+
+
+        function abrirCalendario(sala) {
+            const modal = new bootstrap.Modal(document.getElementById('calendar-modal'));
+            const calendarEl = document.getElementById('calendar');
+
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'timeGridWeek',
+                events: async function(fetchInfo, successCallback, failureCallback) {
+                    try {
+                        const response = await fetch(`${apiBase}/salas/${sala.salaID}/horarios`);
+                        const eventos = await response.json();
+                        successCallback(eventos);
+                    } catch (error) {
+                        failureCallback(error);
+                    }
+                },
+                selectable: true,
+                select: function(info) {
+                    const nuevoEvento = {
+                        title: sala.nombre,
+                        start: info.start,
+                        end: info.end
+                    };
+
+                    if (confirm(`¿Agregar horario del ${info.startStr} al ${info.endStr}?`)) {
+                        fetch(`${apiBase}/salas/${sala.salaID}/horarios`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(nuevoEvento)
+                        })
+                        .then(() => calendar.refetchEvents())
+                        .catch(err => console.error('Error agregando horario:', err));
+                    }
+                }
+            });
+
+            calendar.render();
+            modal.show();
+        }
+
+
+  function borrarSala(salaID) {
+    const confirmacion = confirm("¿Estás seguro de que deseas eliminar esta sala?");
+    if (confirmacion) {
+        $.ajax({
+            type: "POST",
+            url: "https://inventariofw.somee.com/paginas.asmx/BorrarSala", // Asegúrate de que la URL sea correcta
+            data: { salaID: salaID }, // Enviamos el dato como parámetro de formulario
+            contentType: "application/x-www-form-urlencoded", // Formato de datos correcto
+            dataType: "xml", // El servidor devuelve XML
+            success: function(response) {
+                console.log("Sala eliminada:", response);
+                cargarSalas(); // Recargar las salas después de eliminar una
+            },
+            error: function(xhr, status, error) {
+                console.error("Error al eliminar la sala:", error);
+            }
+        });
+    }
+}
+	
+     $(document).ready(function() {
+    cargarSalas(); // Cargar las salas al iniciar
+
+    $('#form-sala').submit(function(event) {
+        event.preventDefault();
+
+        // Recopilamos los datos del formulario
+        const formData = {
+            salaID: $('#salaID').val(),
+            nombre: $('#nombre').val(),
+            descripcion: $('#descripcion').val(),
+            precio: $('#precio').val(),
+            imagen: $('#imagen').val(),
+            video: $('#video').val()
+        };
+
+        // Determinamos si debemos modificar o insertar según el ID de la sala
+        const url = formData.salaID ? 'https://inventariofw.somee.com/paginas.asmx/ModificarSala' : 'https://inventariofw.somee.com/paginas.asmx/AgregarSala';
+
+        // Configuramos los parámetros de la solicitud AJAX
+        var settings = {
+            "url": url,
+            "method": "POST",
+            "timeout": 0,
+            "headers": {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            "data": formData // Enviamos los datos del formulario
+        };
+
+        // Realizamos la solicitud AJAX
+        $.ajax(settings).done(function(response) {
+            alert("Sala guardada exitosamente.");
+            cerrarModalSala(); // Cerrar el modal después de guardar
+            cargarSalas(); // Recargar las salas
+        }).fail(function(xhr, status, error) {
+            console.error("Error al guardar la sala:", error);
+            console.log("Detalles del error:", xhr.responseText);
+        });
+    });
+});
+    </script>
+</body>
+</html>
