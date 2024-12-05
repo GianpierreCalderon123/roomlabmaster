@@ -80,6 +80,30 @@
             color: #000;
             cursor: pointer;
         }
+		.event {
+      background-color: #007bff;
+      color: white;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 5px;
+      font-size: 0.9em;
+    }
+
+    .calendar-table th, .calendar-table td {
+      vertical-align: top;
+      height: 80px;
+      position: relative;
+    }
+
+    @media (max-width: 768px) {
+      .calendar-table th, .calendar-table td {
+        font-size: 0.8em;
+      }
+      .event {
+        font-size: 0.75em;
+      }
+    }
     </style>
 </head>
 <body>
@@ -131,19 +155,89 @@
     </div>
 
     <!-- FullCalendar Modal -->
-    <div id="calendar-modal" class="modal" tabindex="-1" role="dialog">
-        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Gestionar Horarios</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="calendar"></div>
-                </div>
-            </div>
+ <div id="calendar-modal" class="modal fade" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+				    
+					  <div class="container my-4">
+    <div class="d-flex justify-content-between align-items-center">
+      <button id="prev-week" class="btn btn-primary">&lt; Semana Anterior</button>
+      <h2 id="current-week" class="text-center"></h2>
+      <button id="next-week" class="btn btn-primary">Semana Siguiente &gt;</button>
+    </div>
+	
+	<br>
+	 <button id="add-event" class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#eventModal">Agregar Evento</button>
+	 <br>
+    <div class="table-responsive">
+      <table class="table table-bordered calendar-table mt-3 text-center">
+        <thead>
+          <tr>
+            <th>Hora</th>
+            <th id="day-0"></th>
+            <th id="day-1"></th>
+            <th id="day-2"></th>
+            <th id="day-3"></th>
+            <th id="day-4"></th>
+            <th id="day-5"></th>
+            <th id="day-6"></th>
+          </tr>
+        </thead>
+        <tbody id="weekly-matrix">
+          <!-- Rows added dynamically -->
+        </tbody>
+      </table>
+    </div>
+   
+  </div>
+        
         </div>
     </div>
+</div>
+
+  <!-- Event Modal -->
+  <div class="modal fade" id="eventModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitle">Agregar Evento</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <form id="eventForm">
+            <div class="mb-3">
+              <label for="eventTitle" class="form-label">Título del Evento</label>
+              <input type="text" class="form-control" id="eventTitle" required>
+            </div>
+            <div class="mb-3">
+              <label for="eventDay" class="form-label">Día</label>
+              <select class="form-select" id="eventDay" required>
+                <option value="0">Lunes</option>
+                <option value="1">Martes</option>
+                <option value="2">Miércoles</option>
+                <option value="3">Jueves</option>
+                <option value="4">Viernes</option>
+                <option value="5">Sábado</option>
+                <option value="6">Domingo</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label for="eventStart" class="form-label">Hora de Inicio</label>
+              <input type="number" class="form-control" id="eventStart" min="8" max="22" required>
+            </div>
+            <div class="mb-3">
+              <label for="eventEnd" class="form-label">Hora de Fin</label>
+              <input type="number" class="form-control" id="eventEnd" min="8" max="22" required>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" id="saveEvent" class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
     <!-- jQuery, Bootstrap JS y FullCalendar JS -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -151,6 +245,116 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
 
     <script>
+	
+	 const weekElement = document.getElementById("current-week");
+    const daysHeader = [...document.querySelectorAll("th[id^='day-']")];
+    const matrixElement = document.getElementById("weekly-matrix");
+    const prevWeekButton = document.getElementById("prev-week");
+    const nextWeekButton = document.getElementById("next-week");
+    const saveEventButton = document.getElementById("saveEvent");
+
+    let currentDate = new Date();
+    let events = [];
+    let editingEvent = null;
+
+    const dayNames = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+    function getStartOfWeek(date) {
+      const day = date.getDay();
+      const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday as the start
+      return new Date(date.setDate(diff));
+    }
+
+    function formatWeek(startOfWeek) {
+      const options = { month: 'short', day: 'numeric' };
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      return `${startOfWeek.toLocaleDateString('es-ES', options)} - ${endOfWeek.toLocaleDateString('es-ES', options)}`;
+    }
+
+    function renderMatrix(startOfWeek) {
+      matrixElement.innerHTML = "";
+      daysHeader.forEach((header, index) => {
+        const dayDate = new Date(startOfWeek);
+        dayDate.setDate(startOfWeek.getDate() + index);
+        header.textContent = `${dayNames[index]} ${dayDate.getDate()}`;
+      });
+
+      for (let hour = 8; hour <= 22; hour++) {
+        const row = document.createElement("tr");
+        const hourCell = document.createElement("td");
+        hourCell.textContent = `${hour}:00`;
+        row.appendChild(hourCell);
+
+        for (let day = 0; day < 7; day++) {
+          const cell = document.createElement("td");
+          cell.dataset.day = day;
+          cell.dataset.hour = hour;
+          cell.classList.add("calendar-cell");
+          renderEvents(cell);
+          row.appendChild(cell);
+        }
+
+        matrixElement.appendChild(row);
+      }
+    }
+
+    function renderEvents(cell) {
+      const day = parseInt(cell.dataset.day);
+      const hour = parseInt(cell.dataset.hour);
+      const event = events.find(e => e.day === day && e.startHour <= hour && e.endHour > hour);
+
+      cell.innerHTML = "";
+      if (event && event.startHour === hour) {
+        const eventDiv = document.createElement("div");
+        eventDiv.classList.add("event");
+        eventDiv.textContent = event.title;
+        cell.appendChild(eventDiv);
+      }
+    }
+
+    function updateCalendar() {
+      const startOfWeek = getStartOfWeek(new Date(currentDate));
+      weekElement.textContent = formatWeek(startOfWeek);
+      renderMatrix(startOfWeek);
+    }
+
+    prevWeekButton.addEventListener("click", () => {
+      currentDate.setDate(currentDate.getDate() - 7);
+      updateCalendar();
+    });
+
+    nextWeekButton.addEventListener("click", () => {
+      currentDate.setDate(currentDate.getDate() + 7);
+      updateCalendar();
+    });
+
+    saveEventButton.addEventListener("click", () => {
+      const title = document.getElementById("eventTitle").value;
+      const day = parseInt(document.getElementById("eventDay").value);
+      const startHour = parseInt(document.getElementById("eventStart").value);
+      const endHour = parseInt(document.getElementById("eventEnd").value);
+
+      if (startHour >= endHour) {
+        alert("La hora de inicio debe ser menor a la hora de fin.");
+        return;
+      }
+
+      if (editingEvent) {
+        editingEvent.title = title;
+        editingEvent.day = day;
+        editingEvent.startHour = startHour;
+        editingEvent.endHour = endHour;
+      } else {
+        events.push({ title, day, startHour, endHour });
+      }
+
+      updateCalendar();
+      document.getElementById("eventForm").reset();
+      editingEvent = null;
+    });
+
+    updateCalendar();
         const apiBase = 'https://api.example.com'; // Cambia por la URL de tu API
 
         function abrirModalSala(sala = null) {
@@ -253,47 +457,159 @@ window.addEventListener('click', function(event) {
 });
 
 
+function abrirCalendario(sala) {
 
-        function abrirCalendario(sala) {
-            const modal = new bootstrap.Modal(document.getElementById('calendar-modal'));
-            const calendarEl = document.getElementById('calendar');
+  const modal = new bootstrap.Modal(document.getElementById('calendar-modal')); 
+  modal.show();
+  <!-- // Mostrar el modal -->
+  <!-- const modal = new bootstrap.Modal(document.getElementById('calendar-modal')); -->
+  <!-- const availableHours = document.getElementById('available-hours'); -->
+  <!-- const availableTableBody = availableHours.querySelector('weekly-matrix'); -->
+  <!-- const events = []; -->
 
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'timeGridWeek',
-                events: async function(fetchInfo, successCallback, failureCallback) {
-                    try {
-                        const response = await fetch(`${apiBase}/salas/${sala.salaID}/horarios`);
-                        const eventos = await response.json();
-                        successCallback(eventos);
-                    } catch (error) {
-                        failureCallback(error);
-                    }
-                },
-                selectable: true,
-                select: function(info) {
-                    const nuevoEvento = {
-                        title: sala.nombre,
-                        start: info.start,
-                        end: info.end
-                    };
+  <!-- // Realizar la solicitud AJAX para obtener los horarios -->
+  <!-- const settings = { -->
+    <!-- url: "https://inventariofw.somee.com/Paginas.asmx/ObtenerHorariosPorSala", -->
+    <!-- method: "POST", -->
+    <!-- timeout: 0, -->
+    <!-- headers: { -->
+      <!-- "Content-Type": "application/x-www-form-urlencoded" -->
+    <!-- }, -->
+    <!-- data: { -->
+      <!-- "salaID": sala.salaID -->
+    <!-- }, -->
+    <!-- dataType: "text" -->
+  <!-- }; -->
 
-                    if (confirm(`¿Agregar horario del ${info.startStr} al ${info.endStr}?`)) {
-                        fetch(`${apiBase}/salas/${sala.salaID}/horarios`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(nuevoEvento)
-                        })
-                        .then(() => calendar.refetchEvents())
-                        .catch(err => console.error('Error agregando horario:', err));
-                    }
-                }
-            });
+  <!-- $.ajax(settings).done(function(response) { -->
+    <!-- console.log("Respuesta recibida:", response); -->
 
-            calendar.render();
-            modal.show();
-        }
+    <!-- // Extraer y procesar el XML de la respuesta -->
+    <!-- const inicioXML = response.indexOf("<ArrayOfHorario"); -->
+    <!-- const finXML = response.lastIndexOf("</ArrayOfHorario>") + "</ArrayOfHorario>".length; -->
+
+    <!-- if (inicioXML === -1 || finXML === -1) { -->
+      <!-- throw new Error("El XML no se encuentra en la respuesta."); -->
+    <!-- } -->
+
+    <!-- const xmlString = response.substring(inicioXML, finXML); -->
+    <!-- const xml = $.parseXML(xmlString); -->
+    <!-- const $xml = $(xml); -->
+
+    <!-- // Procesar los nodos del XML -->
+    <!-- const horarios = $xml.find("Horario"); -->
+    
+    <!-- horarios.each(function() { -->
+      <!-- const horario = $(this); -->
+      <!-- const fecha = horario.find("Fecha").text(); -->
+      <!-- const horaInicio = parseInt(horario.find("HoraInicio").text()) || 8; -->
+      <!-- const horaFin = parseInt(horario.find("HoraFin").text()) || 22; -->
+      <!-- const asunto = horario.find("Asunto").text(); -->
+
+      <!-- const startDate = new Date(fecha.split("T")[0] + "T" + horaInicio + ":00"); -->
+      <!-- const endDate = new Date(fecha.split("T")[0] + "T" + horaFin + ":00"); -->
+
+      <!-- // Crear evento -->
+      <!-- events.push({ -->
+        <!-- title: asunto, -->
+        <!-- start: startDate, -->
+        <!-- end: endDate -->
+      <!-- }); -->
+    <!-- }); -->
+
+    <!-- // Llenar la tabla con los horarios disponibles y los eventos ocupados -->
+    <!-- llenarTablaHorarios(events); -->
+    <!-- modal.show(); -->
+  <!-- }).fail(function(error) { -->
+    <!-- console.error("Error al obtener los horarios:", error); -->
+  <!-- }); -->
+}
+
+function llenarTablaHorarios(events) {
+  const availableTableBody = document.querySelector('#available-hours tbody');
+  const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  const hours = Array.from({length: 15}, (_, i) => i + 8); // Horas de 8 a 22
+
+  // Limpiar la tabla antes de llenarla
+  availableTableBody.innerHTML = "";
+
+  // Llenar la tabla
+  hours.forEach(hour => {
+    const row = document.createElement("tr");
+    const hourCell = document.createElement("td");
+    hourCell.textContent = `${hour}:00`;
+    row.appendChild(hourCell);
+
+    daysOfWeek.forEach((day, index) => {
+      const cell = document.createElement("td");
+      cell.dataset.day = index;
+      cell.dataset.hour = hour;
+
+      // Verificar si el horario está ocupado
+      const isOccupied = events.some(event => {
+        const eventStartHour = event.start.getHours();
+        const eventEndHour = event.end.getHours();
+        return event.start.getDay() === index && eventStartHour <= hour && eventEndHour > hour;
+      });
+
+      if (isOccupied) {
+        cell.classList.add('occupied');
+        cell.textContent = "Ocupado";
+      } else {
+        cell.classList.add('available');
+        cell.textContent = "Disponible";
+      }
+
+      row.appendChild(cell);
+    });
+
+    availableTableBody.appendChild(row);
+  });
+}
+
+
+function actualizarTabla(events, sala) {
+  const matrixElement = document.getElementById("weekly-matrix");
+  const dayNames = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+  
+  // Limpiar la tabla antes de actualizar
+  matrixElement.innerHTML = "";
+
+  // Crear una tabla de horas con los eventos correspondientes
+  for (let hour = 8; hour <= 22; hour++) {
+    const row = document.createElement("tr");
+    const hourCell = document.createElement("td");
+    hourCell.textContent = `${hour}:00`;
+    row.appendChild(hourCell);
+
+    for (let day = 0; day < 7; day++) {
+      const cell = document.createElement("td");
+      cell.dataset.day = day;
+      cell.dataset.hour = hour;
+      
+      // Comprobar si existe un evento para la hora y día
+      const event = events.find(e => e.start.getDay() === day && e.start.getHours() === hour);
+      if (event) {
+        const eventDiv = document.createElement("div");
+        eventDiv.classList.add("event");
+        eventDiv.textContent = event.title;
+        cell.appendChild(eventDiv);
+      }
+
+      row.appendChild(cell);
+    }
+    matrixElement.appendChild(row);
+  }
+
+  // Botón para agregar nuevo evento
+  const addEventButton = document.getElementById("add-event");
+  addEventButton.addEventListener("click", () => {
+    // Aquí se debería abrir un modal o funcionalidad para agregar un evento
+    // Asegúrate de que los datos sean correctamente enviados y procesados.
+    alert('Agregar un nuevo evento para esta semana');
+  });
+}
+
 
 
   function borrarSala(salaID) {
