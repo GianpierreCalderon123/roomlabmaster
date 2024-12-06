@@ -167,7 +167,7 @@
     </div>
 	
 	<br>
-	 <button id="add-event" class="btn btn-success mt-3" data-bs-toggle="modal" data-bs-target="#eventModal">Agregar Evento</button>
+	 <button id="add-event" class="btn btn-success mt-3"  >Agregar Evento</button>
 	 <br>
     <div class="table-responsive">
       <table class="table table-bordered calendar-table mt-3 text-center">
@@ -201,7 +201,8 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="modalTitle">Agregar Evento</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          <button type="button" class="btn-close"  aria-label="Close"></button>
+          <button type="button" class="btn-close"  aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <form id="eventForm">
@@ -245,7 +246,15 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
 
     <script>
-	
+	 const addEventButton = document.getElementById("add-event");
+  const eventModal = new bootstrap.Modal(document.getElementById("eventModal"));
+
+  // Asocia el evento de clic al botón
+  addEventButton.addEventListener("click", function () {
+    eventModal.show(); // Muestra el modal
+  });
+  
+  
 	 const weekElement = document.getElementById("current-week");
     const daysHeader = [...document.querySelectorAll("th[id^='day-']")];
     const matrixElement = document.getElementById("weekly-matrix");
@@ -299,7 +308,7 @@
       }
     }
 
-    function renderEvents(cell) {
+    function renderEventso(cell) {
       const day = parseInt(cell.dataset.day);
       const hour = parseInt(cell.dataset.hour);
       const event = events.find(e => e.day === day && e.startHour <= hour && e.endHour > hour);
@@ -312,6 +321,67 @@
         cell.appendChild(eventDiv);
       }
     }
+function renderEvents(cell) {
+  const day = parseInt(cell.dataset.day); // Día de la celda
+  const hour = parseInt(cell.dataset.hour); // Hora de la celda
+
+  console.log(`Procesando celda: Día ${day}, Hora ${hour}`);
+
+  // Encuentra el evento que corresponde al día y la hora
+  const event = events.find(e => e.day === day && e.startHour <= hour && e.endHour > hour);
+
+  // Limpia cualquier contenido previo en la celda
+  cell.innerHTML = "";
+
+  if (event) {
+    console.log(`Evento encontrado: ${event.title} (de ${event.startHour} a ${event.endHour})`);
+
+    // Pintar el evento en la celda de la hora de inicio
+    if (event.startHour === hour) {
+      console.log(`Pintando evento en la celda de inicio: ${event.title}`);
+      const eventDiv = document.createElement("div");
+      eventDiv.classList.add("event");
+      eventDiv.textContent = event.title;
+      cell.appendChild(eventDiv); // Agregar el evento en la celda de inicio
+    }
+
+    // Pintar las celdas correspondientes al evento según su duración
+    for (let i = event.startHour; i <= event.endHour; i++) {
+      // Agregar log para ver cada hora que se está procesando
+      console.log(`Procesando hora ${i} para el evento "${event.title}"`);
+
+      const eventCell = document.querySelector(`[data-day="${day}"][data-hour="${i}"]`);
+
+      // Agregar log para verificar si la celda se encuentra
+      if (eventCell) {
+        console.log(`Celda encontrada para Día ${day}, Hora ${i}`);
+
+        // Verificar si la celda ya contiene un evento
+        if (!eventCell.querySelector(".event")) {
+          console.log(`No hay evento en la celda de Día ${day}, Hora ${i}, pintando evento`);
+
+          eventCell.style.backgroundColor = "lightblue"; // Color de fondo
+
+          const eventDivCopy = document.createElement("div");
+          eventDivCopy.classList.add("event");
+          eventDivCopy.textContent = event.title;
+          eventCell.appendChild(eventDivCopy); // Pintamos el evento en la celda correspondiente
+
+          // Log para confirmar que se pintó el evento
+          console.log(`Evento pintado en la celda de Día ${day}, Hora ${i}`);
+        } else {
+          console.log(`La celda de Día ${day}, Hora ${i} ya tiene un evento, no se pintará`);
+        }
+      } else {
+        console.log(`No se encontró la celda para Día ${day}, Hora ${i}. Verifique el HTML.`);
+      }
+    }
+  } else {
+    console.log(`No se encontró ningún evento para la celda: Día ${day}, Hora ${hour}`);
+  }
+}
+
+
 
     function updateCalendar() {
       const startOfWeek = getStartOfWeek(new Date(currentDate));
