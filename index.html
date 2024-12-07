@@ -19,7 +19,16 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
 
     <style>
-	
+	.event-merged {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  color: white;
+  padding: 5px;
+  box-sizing: border-box;
+  border-radius: 4px;
+}
+
 	.hero-section {
     background-color: #343a40;
     color: white;
@@ -281,106 +290,74 @@
       return `${startOfWeek.toLocaleDateString('es-ES', options)} - ${endOfWeek.toLocaleDateString('es-ES', options)}`;
     }
 
-    function renderMatrix(startOfWeek) {
-      matrixElement.innerHTML = "";
-      daysHeader.forEach((header, index) => {
-        const dayDate = new Date(startOfWeek);
-        dayDate.setDate(startOfWeek.getDate() + index);
-        header.textContent = `${dayNames[index]} ${dayDate.getDate()}`;
-      });
+    
+function renderMatrix(startOfWeek) {
+  matrixElement.innerHTML = "";
 
-      for (let hour = 8; hour <= 22; hour++) {
-        const row = document.createElement("tr");
-        const hourCell = document.createElement("td");
-        hourCell.textContent = `${hour}:00`;
-        row.appendChild(hourCell);
+  // Crear el encabezado con los nombres de los días y las fechas
+  const headerRow = document.createElement("tr");
+  const emptyCell = document.createElement("th");
+  headerRow.appendChild(emptyCell); // Celda vacía para la columna de las horas
 
-        for (let day = 0; day < 7; day++) {
-          const cell = document.createElement("td");
-          cell.dataset.day = day;
-          cell.dataset.hour = hour;
-          cell.classList.add("calendar-cell");
-          renderEvents(cell);
-          row.appendChild(cell);
-        }
+  for (let day = 0; day < 7; day++) {
+    const dayDate = new Date(startOfWeek);
+    dayDate.setDate(startOfWeek.getDate() + day);
 
-        matrixElement.appendChild(row);
+    const headerCell = document.createElement("th");
+    headerCell.textContent = `${dayNames[day]} ${dayDate.getDate()}`;
+    headerRow.appendChild(headerCell);
+  }
+
+  matrixElement.appendChild(headerRow);
+
+  // Barrer las horas de la semana
+  for (let hour = 8; hour <= 22; hour++) {
+    const row = document.createElement("tr");
+
+    // Celda de hora (siempre la primera columna)
+    const hourCell = document.createElement("td");
+    hourCell.textContent = `${hour}:00`;
+    row.appendChild(hourCell);
+
+    for (let day = 0; day < 7; day++) {
+      // Verificar si ya hay una celda ocupando este espacio
+      const overlappingEvent = Array.from(matrixElement.querySelectorAll(`.event-cell`)).find(
+        cell => parseInt(cell.dataset.day) === day && parseInt(cell.dataset.startHour) <= hour && parseInt(cell.dataset.endHour) > hour
+      );
+
+      if (overlappingEvent) {
+        // Si ya hay una celda ocupando esta posición, saltar
+        continue;
       }
-    }
 
-    function renderEventso(cell) {
-      const day = parseInt(cell.dataset.day);
-      const hour = parseInt(cell.dataset.hour);
-      const event = events.find(e => e.day === day && e.startHour <= hour && e.endHour > hour);
+      // Verificar si hay un evento que empieza en esta hora
+      const event = events.find(e => e.day === day && e.startHour === hour);
 
-      cell.innerHTML = "";
-      if (event && event.startHour === hour) {
-        const eventDiv = document.createElement("div");
-        eventDiv.classList.add("event");
-        eventDiv.textContent = event.title;
-        cell.appendChild(eventDiv);
-      }
-    }
-function renderEvents(cell) {
-  const day = parseInt(cell.dataset.day); // Día de la celda
-  const hour = parseInt(cell.dataset.hour); // Hora de la celda
+      if (event) {
+        // Crear celda con rowspan para el evento
+        const cell = document.createElement("td");
+        cell.classList.add("calendar-cell", "event-cell", "table-primary"); // Usar clase de Bootstrap
+        
+		cell.textContent = event.title;
+        cell.rowSpan = event.endHour - event.startHour;
+		
+        // Guardar metadata en la celda
+        cell.dataset.day = day;
+        cell.dataset.startHour = event.startHour;
+        cell.dataset.endHour = event.endHour;
 
-  console.log(`Procesando celda: Día ${day}, Hora ${hour}`);
-
-  // Encuentra el evento que corresponde al día y la hora
-  const event = events.find(e => e.day === day && e.startHour <= hour && e.endHour > hour);
-
-  // Limpia cualquier contenido previo en la celda
-  cell.innerHTML = "";
-
-  if (event) {
-    console.log(`Evento encontrado: ${event.title} (de ${event.startHour} a ${event.endHour})`);
-
-    // Pintar el evento en la celda de la hora de inicio
-    if (event.startHour === hour) {
-      console.log(`Pintando evento en la celda de inicio: ${event.title}`);
-      const eventDiv = document.createElement("div");
-      eventDiv.classList.add("event");
-      eventDiv.textContent = event.title;
-      cell.appendChild(eventDiv); // Agregar el evento en la celda de inicio
-    }
-
-    // Pintar las celdas correspondientes al evento según su duración
-    for (let i = event.startHour; i <= event.endHour; i++) {
-      // Agregar log para ver cada hora que se está procesando
-      console.log(`Procesando hora ${i} para el evento "${event.title}"`);
-
-      const eventCell = document.querySelector(`[data-day="${day}"][data-hour="${i}"]`);
-
-      // Agregar log para verificar si la celda se encuentra
-      if (eventCell) {
-        console.log(`Celda encontrada para Día ${day}, Hora ${i}`);
-
-        // Verificar si la celda ya contiene un evento
-        if (!eventCell.querySelector(".event")) {
-          console.log(`No hay evento en la celda de Día ${day}, Hora ${i}, pintando evento`);
-
-          eventCell.style.backgroundColor = "lightblue"; // Color de fondo
-
-          const eventDivCopy = document.createElement("div");
-          eventDivCopy.classList.add("event");
-          eventDivCopy.textContent = event.title;
-          eventCell.appendChild(eventDivCopy); // Pintamos el evento en la celda correspondiente
-
-          // Log para confirmar que se pintó el evento
-          console.log(`Evento pintado en la celda de Día ${day}, Hora ${i}`);
-        } else {
-          console.log(`La celda de Día ${day}, Hora ${i} ya tiene un evento, no se pintará`);
-        }
+        row.appendChild(cell);
       } else {
-        console.log(`No se encontró la celda para Día ${day}, Hora ${i}. Verifique el HTML.`);
+        // Crear celda vacía si no hay evento
+        const cell = document.createElement("td");
+        cell.classList.add("calendar-cell");
+        row.appendChild(cell);
       }
     }
-  } else {
-    console.log(`No se encontró ningún evento para la celda: Día ${day}, Hora ${hour}`);
+
+    matrixElement.appendChild(row);
   }
 }
-
 
 
     function updateCalendar() {
