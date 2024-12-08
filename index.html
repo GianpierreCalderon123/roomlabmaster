@@ -180,18 +180,7 @@
 	 <br>
     <div class="table-responsive">
       <table class="table table-bordered calendar-table mt-3 text-center">
-        <thead>
-          <tr>
-            <th>Hora</th>
-            <th id="day-0"></th>
-            <th id="day-1"></th>
-            <th id="day-2"></th>
-            <th id="day-3"></th>
-            <th id="day-4"></th>
-            <th id="day-5"></th>
-            <th id="day-6"></th>
-          </tr>
-        </thead>
+        
         <tbody id="weekly-matrix">
           <!-- Rows added dynamically -->
         </tbody>
@@ -210,8 +199,6 @@
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title" id="modalTitle">Agregar Evento</h5>
-          <button type="button" class="btn-close"  aria-label="Close"></button>
-          <button type="button" class="btn-close"  aria-label="Close"></button>
         </div>
         <div class="modal-body">
           <form id="eventForm">
@@ -244,6 +231,7 @@
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
           <button type="button" id="saveEvent" class="btn btn-primary">Guardar</button>
+		  <button type="button" id="deleteEventButton" class="btn btn-danger">Eliminar</button>
         </div>
       </div>
     </div>
@@ -255,6 +243,39 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.js"></script>
 
     <script>
+	
+		const deleteEventButton = document.getElementById("deleteEventButton");
+
+	// Manejar la eliminación del evento
+	deleteEventButton.addEventListener("click", () => {
+	  if (!editingEvent) {
+		alert("No hay ningún evento seleccionado para eliminar.");
+		return;
+	  }
+
+	  const confirmation = confirm("¿Estás seguro de que deseas eliminar este evento?");
+  
+  if (confirmation) {
+    // Eliminar el evento de la lista
+    events = events.filter(event => event !== editingEvent);
+
+    // Actualizar el calendario
+    updateCalendar();
+
+    // Limpiar el formulario y la variable de edición
+    document.getElementById("eventForm").reset();
+    editingEvent = null;
+
+    // Ocultar el modal
+    eventModal.hide();
+  } else {
+    // Opcional: mensaje o acción si se elige "No"
+    console.log("Eliminación cancelada.");
+  }
+});
+
+
+	
 	 const addEventButton = document.getElementById("add-event");
   const eventModal = new bootstrap.Modal(document.getElementById("eventModal"));
 
@@ -282,6 +303,10 @@
       const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Monday as the start
       return new Date(date.setDate(diff));
     }
+	function eliminarEvento(eventoID) {
+    events = events.filter(event => event.id !== eventoID);
+    updateCalendar(); // Refresca la vista
+}
 
     function formatWeek(startOfWeek) {
       const options = { month: 'short', day: 'numeric' };
@@ -296,8 +321,13 @@ function renderMatrix(startOfWeek) {
 
   // Crear el encabezado con los nombres de los días y las fechas
   const headerRow = document.createElement("tr");
-  const emptyCell = document.createElement("th");
-  headerRow.appendChild(emptyCell); // Celda vacía para la columna de las horas
+  <!-- const emptyCell = document.createElement("th"); -->
+  
+  <!-- headerRow.appendChild(emptyCell); // Celda vacía para la columna de las horas -->
+  // Celda para la columna de las horas
+  const hourHeaderCell = document.createElement("th");
+  hourHeaderCell.textContent = "Hora";
+  headerRow.appendChild(hourHeaderCell);
 
   for (let day = 0; day < 7; day++) {
     const dayDate = new Date(startOfWeek);
@@ -346,6 +376,9 @@ function renderMatrix(startOfWeek) {
         cell.dataset.startHour = event.startHour;
         cell.dataset.endHour = event.endHour;
 
+
+				
+				
         row.appendChild(cell);
       } else {
         // Crear celda vacía si no hay evento
@@ -357,6 +390,8 @@ function renderMatrix(startOfWeek) {
 
     matrixElement.appendChild(row);
   }
+
+ assignEventHandlers();
 }
 
 
@@ -720,6 +755,34 @@ function actualizarTabla(events, sala) {
         });
     });
 });
+
+function assignEventHandlers() {
+  const eventCells = document.querySelectorAll(".event-cell");
+
+  eventCells.forEach((cell) => {
+    cell.addEventListener("click", function () {
+      // Buscar el evento correspondiente
+      const day = parseInt(cell.dataset.day);
+      const startHour = parseInt(cell.dataset.startHour);
+      const event = events.find(
+        (e) => e.day === day && e.startHour === startHour
+      );
+
+      if (event) {
+        // Llenar el formulario del modal con los datos del evento
+        document.getElementById("eventTitle").value = event.title;
+        document.getElementById("eventDay").value = event.day;
+        document.getElementById("eventStart").value = event.startHour;
+        document.getElementById("eventEnd").value = event.endHour;
+
+        // Configurar el evento en edición
+        editingEvent = event;
+        // Mostrar el modal
+        eventModal.show();
+      }
+    });
+  });
+}
     </script>
 </body>
 </html>
