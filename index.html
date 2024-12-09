@@ -264,15 +264,56 @@
 
     // Limpiar el formulario y la variable de edición
     document.getElementById("eventForm").reset();
+	  borrarHorario(editingEvent.id);
     editingEvent = null;
 
     // Ocultar el modal
     eventModal.hide();
+ 
   } else {
     // Opcional: mensaje o acción si se elige "No"
     console.log("Eliminación cancelada.");
   }
 });
+
+
+function borrarHorario(horarioID) {
+    if (!horarioID) {
+        alert("Error: El ID del horario no es válido.");
+        return;
+    }
+
+    const confirmacion = confirm("¿Estás seguro de que deseas eliminar este horario?");
+    if (!confirmacion) return;
+
+    $.ajax({
+        url: "https://inventariofw.somee.com/paginas.asmx/BorrarHorario",
+        type: "POST",
+        timeout: 0,
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: {
+            horarioID: horarioID // Enviar solo el ID del horario
+        },
+        dataType: "xml",
+        success: function (response) {
+            console.log("Horario eliminado con éxito:", response);
+
+            // Eliminar el evento de la lista local
+            events = events.filter(event => event.id !== horarioID);
+
+            // Actualizar el calendario para reflejar los cambios
+            updateCalendar();
+
+            alert("El horario se eliminó correctamente.");
+        },
+        error: function (xhr, status, error) {
+            console.error("Error al eliminar el horario:", error);
+            alert("Hubo un error al intentar eliminar el horario. Inténtalo de nuevo.");
+        }
+    });
+}
 
 
 	
@@ -296,6 +337,20 @@
     let events = [];
     let editingEvent = null;
 
+
+function handlePrevWeek(sala, modal) {
+    return function () {
+        currentDate.setDate(currentDate.getDate() - 7);
+        cargarEventosSemana(sala, currentDate, modal);
+    };
+}
+
+function handleNextWeek(sala, modal) {
+    return function () {
+        currentDate.setDate(currentDate.getDate() + 7);
+        cargarEventosSemana(sala, currentDate, modal);
+    };
+}
     const dayNames = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
     function getStartOfWeek(date) {
@@ -401,44 +456,160 @@ function renderMatrix(startOfWeek) {
       renderMatrix(startOfWeek);
     }
 
-    prevWeekButton.addEventListener("click", () => {
-      currentDate.setDate(currentDate.getDate() - 7);
-      updateCalendar();
-    });
 
-    nextWeekButton.addEventListener("click", () => {
-      currentDate.setDate(currentDate.getDate() + 7);
-      updateCalendar();
-    });
 
-    saveEventButton.addEventListener("click", () => {
-      const title = document.getElementById("eventTitle").value;
-      const day = parseInt(document.getElementById("eventDay").value);
-      const startHour = parseInt(document.getElementById("eventStart").value);
-      const endHour = parseInt(document.getElementById("eventEnd").value);
+    <!-- saveEventButton.addEventListener("click", () => { -->
+      <!-- const title = document.getElementById("eventTitle").value; -->
+      <!-- const day = parseInt(document.getElementById("eventDay").value); -->
+      <!-- const startHour = parseInt(document.getElementById("eventStart").value); -->
+      <!-- const endHour = parseInt(document.getElementById("eventEnd").value); -->
 
-      if (startHour >= endHour) {
+      <!-- if (startHour >= endHour) { -->
+        <!-- alert("La hora de inicio debe ser menor a la hora de fin."); -->
+        <!-- return; -->
+      <!-- } -->
+
+      <!-- if (editingEvent) { -->
+        <!-- editingEvent.title = title; -->
+        <!-- editingEvent.day = day; -->
+        <!-- editingEvent.startHour = startHour; -->
+        <!-- editingEvent.endHour = endHour; -->
+      <!-- } else { -->
+        <!-- events.push({ title, day, startHour, endHour }); -->
+      <!-- } -->
+
+      <!-- updateCalendar(); -->
+      <!-- document.getElementById("eventForm").reset(); -->
+      <!-- editingEvent = null; -->
+    <!-- }); -->
+
+
+
+saveEventButton.addEventListener("click", () => {
+    const title = document.getElementById("eventTitle").value;
+    const day = parseInt(document.getElementById("eventDay").value);
+    const startHour = parseInt(document.getElementById("eventStart").value); // Hora en formato entero
+    const endHour = parseInt(document.getElementById("eventEnd").value); // Hora en formato entero
+    const salaID = saveEventButton.dataset.salaId; // Obtener `salaID` dinámicamente
+
+    if (!salaID) {
+        alert("Error: No se ha seleccionado una sala.");
+        return;
+    }
+
+    if (startHour >= endHour) {
         alert("La hora de inicio debe ser menor a la hora de fin.");
         return;
-      }
+    }
 
-      if (editingEvent) {
-        editingEvent.title = title;
-        editingEvent.day = day;
-        editingEvent.startHour = startHour;
-        editingEvent.endHour = endHour;
-      } else {
-        events.push({ title, day, startHour, endHour });
-      }
+    // Crear fecha basada en el día de la semana actual
+    const startOfWeek = getStartOfWeek(new Date(currentDate));
+    const eventDate = new Date(startOfWeek);
+    eventDate.setDate(startOfWeek.getDate() + day);
 
-      updateCalendar();
-      document.getElementById("eventForm").reset();
-      editingEvent = null;
-    });
+    // Convertir las horas al formato `hh:mm:ss`
+    const formattedStartHour = startHour;
+    const formattedEndHour =endHour;
+
+    if (editingEvent) {
+        // Actualizar evento existente
+        const updateData = {
+            horarioID: editingEvent.id, // ID del evento a actualizar
+            fecha: eventDate.toISOString().split('T')[0], // Formato YYYY-MM-DD
+            horaInicio: formattedStartHour,
+            horaFin: formattedEndHour,
+            asunto: title
+        };
+
+        $.ajax({
+            url: "https://inventariofw.somee.com/paginas.asmx/ActualizarHorario",
+            type: "POST",
+            timeout: 0,
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            data: {
+                horarioID: updateData.horarioID,
+                fecha: updateData.fecha,
+                horaInicio: updateData.horaInicio,
+                horaFin: updateData.horaFin,
+                asunto: updateData.asunto
+            },
+            dataType: "xml",
+            success: function (response) {
+                console.log("Evento actualizado con éxito:", response);
+
+                // Actualizar evento en la lista local
+                editingEvent.title = updateData.asunto;
+                editingEvent.day = day;
+                editingEvent.startHour = startHour;
+                editingEvent.endHour = endHour;
+
+                updateCalendar();
+
+                // Limpiar y cerrar el modal
+                document.getElementById("eventForm").reset();
+                editingEvent = null;
+                eventModal.hide();
+            },
+            error: function (xhr, status, error) {
+                console.error("Error al actualizar el evento:", error);
+                alert("Hubo un error al actualizar el evento. Inténtalo de nuevo.");
+            }
+        });
+    } else {
+        // Agregar nuevo evento
+        const newEventData = {
+            salaID: salaID,
+            fecha: eventDate.toISOString().split('T')[0], // Formato YYYY-MM-DD
+            horaInicio: formattedStartHour,
+            horaFin: formattedEndHour,
+            asunto: title
+        };
+
+        $.ajax({
+            type: "POST",
+			url: "https://inventariofw.somee.com/paginas.asmx/AgregarHorario",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            data: {
+                salaID: newEventData.salaID,
+                fecha: newEventData.fecha,
+                horaInicio: newEventData.horaInicio,
+                horaFin: newEventData.horaFin,
+                asunto: newEventData.asunto
+            },
+            dataType: "xml",
+            success: function (response) {
+                console.log("Evento guardado con éxito:", response);
+
+                // Agregar nuevo evento a la lista local
+                events.push({
+                    id: $(response).find("string").text(), // Generar un ID temporal
+                    title: newEventData.asunto,
+                    day: day,
+                    startHour: startHour,
+                    endHour: endHour
+                });
+
+                updateCalendar();
+
+                // Limpiar y cerrar el modal
+                document.getElementById("eventForm").reset();
+                eventModal.hide();
+            },
+            error: function (xhr, status, error) {
+                console.error("Error al guardar el evento:", error);
+                alert("Hubo un error al guardar el evento. Inténtalo de nuevo.");
+            }
+        });
+    }
+});
+
 
     updateCalendar();
-        const apiBase = 'https://api.example.com'; // Cambia por la URL de tu API
-
+        
         function abrirModalSala(sala = null) {
             const modal = document.getElementById('modal-sala');
             const form = document.getElementById('form-sala');
@@ -539,10 +710,206 @@ window.addEventListener('click', function(event) {
 });
 
 
-function abrirCalendario(sala) {
+function cargarEventosSemana(sala, currentDate, modal) {
+    const startOfWeek = getStartOfWeek(currentDate);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // Calcular el fin de la semana
 
-  const modal = new bootstrap.Modal(document.getElementById('calendar-modal')); 
-  modal.show();
+    const weekElement = document.getElementById("current-week");
+    const matrixElement = document.getElementById("weekly-matrix");
+
+    // Limpiar eventos y matriz antes de cargar nuevos datos
+    matrixElement.innerHTML = "";
+    events = []; // Reiniciar eventos
+
+    $.ajax({
+        url: "https://inventariofw.somee.com/Paginas.asmx/ObtenerHorariosPorSalaFiltroFecha",
+        method: "POST",
+        timeout: 0,
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded"
+        },
+        data: {
+            salaID: sala.salaID,
+            fechadesde: startOfWeek.toISOString().split('T')[0], // Formatear como YYYY-MM-DD
+            fechahasta: endOfWeek.toISOString().split('T')[0]
+        },
+        dataType: "text",
+        success: function(response) {
+            console.log("Respuesta recibida:", response);
+
+            // Manejo de respuestas vacías o inválidas
+            if (!response || response.trim().length === 0 || !response.includes("<Horario")) {
+                console.warn("No hay eventos programados para esta semana.");
+                weekElement.textContent = formatWeek(startOfWeek);
+                renderMatrix(startOfWeek);
+                modal.show();
+                return;
+            }
+
+            // Procesar respuesta XML
+            const inicioXML = response.indexOf("<ArrayOfHorario");
+            const finXML = response.lastIndexOf("</ArrayOfHorario>") + "</ArrayOfHorario>".length;
+
+            if (inicioXML === -1 || finXML === -1) {
+                console.error("El XML no se encuentra en la respuesta.");
+                alert("Error al procesar los datos del calendario.");
+                weekElement.textContent = formatWeek(startOfWeek);
+                renderMatrix(startOfWeek);
+                modal.show();
+                return;
+            }
+
+            const xmlString = response.substring(inicioXML, finXML);
+            const xml = $.parseXML(xmlString);
+            const $xml = $(xml);
+
+            // Procesar los nodos del XML
+            $xml.find("Horario").each(function() {
+                const horario = $(this);
+ const horarioID = horario.find("HorarioID").text();              
+			  const fecha = horario.find("Fecha").text();
+                const horaInicio = parseInt(horario.find("HoraInicio").text()) || 8;
+                const horaFin = parseInt(horario.find("HoraFin").text()) || 22;
+                const asunto = horario.find("Asunto").text();
+
+                // Convertir datos en formato compatible
+                const day = new Date(fecha).getDay() - 1; // Lunes = 0
+                const startHour = horaInicio;
+                const endHour = horaFin;
+
+                // Crear y agregar evento a la lista
+                events.push({  id: horarioID, title: asunto, day, startHour, endHour });
+            });
+
+            // Actualizar la matriz del calendario
+            weekElement.textContent = formatWeek(startOfWeek);
+            renderMatrix(startOfWeek);
+
+            // Mostrar el modal
+            modal.show();
+        },
+        error: function(xhr, status, error) {
+            console.error("Error al obtener los horarios:", error);
+            alert("Ocurrió un error al cargar los eventos.");
+            weekElement.textContent = formatWeek(startOfWeek);
+            renderMatrix(startOfWeek);
+            modal.show();
+        }
+    });
+}
+
+
+function abrirCalendario(sala) {
+      const modal = new bootstrap.Modal(document.getElementById('calendar-modal'));
+    const prevWeekButton = document.getElementById("prev-week");
+    const nextWeekButton = document.getElementById("next-week");
+
+    // Eliminar cualquier evento existente de los botones
+    prevWeekButton.replaceWith(prevWeekButton.cloneNode(true));
+    nextWeekButton.replaceWith(nextWeekButton.cloneNode(true));
+
+    // Reasignar botones actualizados
+    const newPrevWeekButton = document.getElementById("prev-week");
+    const newNextWeekButton = document.getElementById("next-week");
+
+    // Asignar manejadores de eventos
+    newPrevWeekButton.addEventListener("click", handlePrevWeek(sala, modal));
+    newNextWeekButton.addEventListener("click", handleNextWeek(sala, modal));
+
+    // Cargar la semana actual
+    cargarEventosSemana(sala, currentDate, modal);
+	saveEventButton.dataset.salaId = sala.salaID;
+}
+  function borrarSala(salaID) {
+    const confirmacion = confirm("¿Estás seguro de que deseas eliminar esta sala?");
+    if (confirmacion) {
+        $.ajax({
+            type: "POST",
+            url: "https://inventariofw.somee.com/paginas.asmx/BorrarSala", // Asegúrate de que la URL sea correcta
+            data: { salaID: salaID }, // Enviamos el dato como parámetro de formulario
+            contentType: "application/x-www-form-urlencoded", // Formato de datos correcto
+            dataType: "xml", // El servidor devuelve XML
+            success: function(response) {
+                console.log("Sala eliminada:", response);
+                cargarSalas(); // Recargar las salas después de eliminar una
+            },
+            error: function(xhr, status, error) {
+                console.error("Error al eliminar la sala:", error);
+            }
+        });
+    }
+}
+	
+   $(document).ready(function() {
+    cargarSalas(); // Cargar las salas al iniciar
+
+    $('#form-sala').submit(function(event) {
+        event.preventDefault();
+
+        // Recopilamos los datos del formulario
+        const formData = {
+            salaID: $('#salaID').val(),
+            nombre: $('#nombre').val(),
+            descripcion: $('#descripcion').val(),
+            precio: $('#precio').val(),
+            imagen: $('#imagen').val(),
+            video: $('#video').val()
+        };
+
+        // Determinamos si debemos modificar o insertar según el ID de la sala
+        const url = formData.salaID ? 'https://inventariofw.somee.com/paginas.asmx/ModificarSala' : 'https://inventariofw.somee.com/paginas.asmx/AgregarSala';
+
+        // Configuramos los parámetros de la solicitud AJAX
+        var settings = {
+            "url": url,
+            "method": "POST",
+            "timeout": 0,
+            "headers": {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            "data": formData // Enviamos los datos del formulario
+        };
+
+        // Realizamos la solicitud AJAX
+        $.ajax(settings).done(function(response) {
+            alert("Sala guardada exitosamente.");
+            cerrarModalSala(); // Cerrar el modal después de guardar
+            cargarSalas(); // Recargar las salas
+        }).fail(function(xhr, status, error) {
+            console.error("Error al guardar la sala:", error);
+            console.log("Detalles del error:", xhr.responseText);
+        });
+    });
+});
+function assignEventHandlers() {
+  const eventCells = document.querySelectorAll(".event-cell");
+
+  eventCells.forEach((cell) => {
+    cell.addEventListener("click", function () {
+      // Buscar el evento correspondiente
+      const day = parseInt(cell.dataset.day);
+      const startHour = parseInt(cell.dataset.startHour);
+      const event = events.find(
+        (e) => e.day === day && e.startHour === startHour
+      );
+
+      if (event) {
+        // Llenar el formulario del modal con los datos del evento
+        document.getElementById("eventTitle").value = event.title;
+        document.getElementById("eventDay").value = event.day;
+        document.getElementById("eventStart").value = event.startHour;
+        document.getElementById("eventEnd").value = event.endHour;
+
+        // Configurar el evento en edición
+        editingEvent = event;
+        // Mostrar el modal
+        eventModal.show();
+      }
+    });
+  });
+}
+
   <!-- // Mostrar el modal -->
   <!-- const modal = new bootstrap.Modal(document.getElementById('calendar-modal')); -->
   <!-- const availableHours = document.getElementById('available-hours'); -->
@@ -605,184 +972,6 @@ function abrirCalendario(sala) {
   <!-- }).fail(function(error) { -->
     <!-- console.error("Error al obtener los horarios:", error); -->
   <!-- }); -->
-}
-
-function llenarTablaHorarios(events) {
-  const availableTableBody = document.querySelector('#available-hours tbody');
-  const daysOfWeek = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-  const hours = Array.from({length: 15}, (_, i) => i + 8); // Horas de 8 a 22
-
-  // Limpiar la tabla antes de llenarla
-  availableTableBody.innerHTML = "";
-
-  // Llenar la tabla
-  hours.forEach(hour => {
-    const row = document.createElement("tr");
-    const hourCell = document.createElement("td");
-    hourCell.textContent = `${hour}:00`;
-    row.appendChild(hourCell);
-
-    daysOfWeek.forEach((day, index) => {
-      const cell = document.createElement("td");
-      cell.dataset.day = index;
-      cell.dataset.hour = hour;
-
-      // Verificar si el horario está ocupado
-      const isOccupied = events.some(event => {
-        const eventStartHour = event.start.getHours();
-        const eventEndHour = event.end.getHours();
-        return event.start.getDay() === index && eventStartHour <= hour && eventEndHour > hour;
-      });
-
-      if (isOccupied) {
-        cell.classList.add('occupied');
-        cell.textContent = "Ocupado";
-      } else {
-        cell.classList.add('available');
-        cell.textContent = "Disponible";
-      }
-
-      row.appendChild(cell);
-    });
-
-    availableTableBody.appendChild(row);
-  });
-}
-
-
-function actualizarTabla(events, sala) {
-  const matrixElement = document.getElementById("weekly-matrix");
-  const dayNames = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-  
-  // Limpiar la tabla antes de actualizar
-  matrixElement.innerHTML = "";
-
-  // Crear una tabla de horas con los eventos correspondientes
-  for (let hour = 8; hour <= 22; hour++) {
-    const row = document.createElement("tr");
-    const hourCell = document.createElement("td");
-    hourCell.textContent = `${hour}:00`;
-    row.appendChild(hourCell);
-
-    for (let day = 0; day < 7; day++) {
-      const cell = document.createElement("td");
-      cell.dataset.day = day;
-      cell.dataset.hour = hour;
-      
-      // Comprobar si existe un evento para la hora y día
-      const event = events.find(e => e.start.getDay() === day && e.start.getHours() === hour);
-      if (event) {
-        const eventDiv = document.createElement("div");
-        eventDiv.classList.add("event");
-        eventDiv.textContent = event.title;
-        cell.appendChild(eventDiv);
-      }
-
-      row.appendChild(cell);
-    }
-    matrixElement.appendChild(row);
-  }
-
-  // Botón para agregar nuevo evento
-  const addEventButton = document.getElementById("add-event");
-  addEventButton.addEventListener("click", () => {
-    // Aquí se debería abrir un modal o funcionalidad para agregar un evento
-    // Asegúrate de que los datos sean correctamente enviados y procesados.
-    alert('Agregar un nuevo evento para esta semana');
-  });
-}
-
-
-
-  function borrarSala(salaID) {
-    const confirmacion = confirm("¿Estás seguro de que deseas eliminar esta sala?");
-    if (confirmacion) {
-        $.ajax({
-            type: "POST",
-            url: "https://inventariofw.somee.com/paginas.asmx/BorrarSala", // Asegúrate de que la URL sea correcta
-            data: { salaID: salaID }, // Enviamos el dato como parámetro de formulario
-            contentType: "application/x-www-form-urlencoded", // Formato de datos correcto
-            dataType: "xml", // El servidor devuelve XML
-            success: function(response) {
-                console.log("Sala eliminada:", response);
-                cargarSalas(); // Recargar las salas después de eliminar una
-            },
-            error: function(xhr, status, error) {
-                console.error("Error al eliminar la sala:", error);
-            }
-        });
-    }
-}
-	
-     $(document).ready(function() {
-    cargarSalas(); // Cargar las salas al iniciar
-
-    $('#form-sala').submit(function(event) {
-        event.preventDefault();
-
-        // Recopilamos los datos del formulario
-        const formData = {
-            salaID: $('#salaID').val(),
-            nombre: $('#nombre').val(),
-            descripcion: $('#descripcion').val(),
-            precio: $('#precio').val(),
-            imagen: $('#imagen').val(),
-            video: $('#video').val()
-        };
-
-        // Determinamos si debemos modificar o insertar según el ID de la sala
-        const url = formData.salaID ? 'https://inventariofw.somee.com/paginas.asmx/ModificarSala' : 'https://inventariofw.somee.com/paginas.asmx/AgregarSala';
-
-        // Configuramos los parámetros de la solicitud AJAX
-        var settings = {
-            "url": url,
-            "method": "POST",
-            "timeout": 0,
-            "headers": {
-                "Content-Type": "application/x-www-form-urlencoded"
-            },
-            "data": formData // Enviamos los datos del formulario
-        };
-
-        // Realizamos la solicitud AJAX
-        $.ajax(settings).done(function(response) {
-            alert("Sala guardada exitosamente.");
-            cerrarModalSala(); // Cerrar el modal después de guardar
-            cargarSalas(); // Recargar las salas
-        }).fail(function(xhr, status, error) {
-            console.error("Error al guardar la sala:", error);
-            console.log("Detalles del error:", xhr.responseText);
-        });
-    });
-});
-
-function assignEventHandlers() {
-  const eventCells = document.querySelectorAll(".event-cell");
-
-  eventCells.forEach((cell) => {
-    cell.addEventListener("click", function () {
-      // Buscar el evento correspondiente
-      const day = parseInt(cell.dataset.day);
-      const startHour = parseInt(cell.dataset.startHour);
-      const event = events.find(
-        (e) => e.day === day && e.startHour === startHour
-      );
-
-      if (event) {
-        // Llenar el formulario del modal con los datos del evento
-        document.getElementById("eventTitle").value = event.title;
-        document.getElementById("eventDay").value = event.day;
-        document.getElementById("eventStart").value = event.startHour;
-        document.getElementById("eventEnd").value = event.endHour;
-
-        // Configurar el evento en edición
-        editingEvent = event;
-        // Mostrar el modal
-        eventModal.show();
-      }
-    });
-  });
-}
     </script>
 </body>
 </html>
