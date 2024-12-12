@@ -662,7 +662,7 @@ function cargarSalas() {
                                 <h5 class="card-title">${nombre}</h5>
                                 <p class="card-text">${descripcion}</p>
                                 <p class="card-text"><strong>Precio:</strong> $${precio}</p>
-                                <button class="btn btn-warning" onclick='abrirModalSala(${JSON.stringify({ salaID, nombre, descripcion, precio, imagen })})'>Editar</button>
+                                <button class="btn btn-warning" onclick='abrirModalSala(${JSON.stringify({ salaID, nombre, descripcion, precio, imagen,video })})'>Editar</button>
                                 <button class="btn btn-secondary" onclick='abrirCalendario(${JSON.stringify({ salaID, nombre })})'>Horarios</button>
 								 <button class="btn btn-danger" onclick="borrarSala(${salaID})">Eliminar</button>
                             </div>
