@@ -688,6 +688,7 @@ function abrirModalSala(sala = null) {
         $('#descripcion').val(sala.descripcion);
         $('#precio').val(sala.precio);
         $('#imagen').val(sala.imagen);
+	    $('#video').val(sala.video);
     } else {
         $('#form-sala')[0].reset(); // Limpiar formulario si es nuevo
         $('#salaID').val('');
